@@ -88,18 +88,10 @@ class Config(dict):
 
     def from_envvar(self, variable_name, silent=False):
         """Loads a configuration from an environment variable pointing to
-        a configuration file.  This is basically just a shortcut with nicer
-        error messages for this line of code::
-
-            app.config.from_pyfile(os.environ['YOURAPPLICATION_SETTINGS'])
-
-        :param variable_name: name of the environment variable
-        :param silent: set to ``True`` if you want silent failure for missing
-                       files.
-        :return: bool. ``True`` if able to load config, ``False`` otherwise.
+        a configuration file.
         """
-        rv = os.environ.get(variable_name)
-        if not rv:
+        root_variable = os.environ.get(variable_name)
+        if not root_variable:
             if silent:
                 return False
             raise RuntimeError(
@@ -108,7 +100,7 @@ class Config(dict):
                 "loaded.  Set this variable and make it "
                 "point to a configuration file" % variable_name
             )
-        return self.from_pyfile(rv, silent=silent)
+        return self.from_pyfile(root_variable, silent=silent)
 
     def from_pyfile(self, filename, silent=False):
         """Updates the values in the config from a Python file.  This function
@@ -125,17 +117,17 @@ class Config(dict):
            `silent` parameter.
         """
         filename = os.path.join(self.root_path, filename)
-        d = types.ModuleType("config")
-        d.__file__ = filename
+        data = types.ModuleType("config")
+        data.__file__ = filename
         try:
             with open(filename, mode="rb") as config_file:
-                exec(compile(config_file.read(), filename, "exec"), d.__dict__)
-        except IOError as e:
-            if silent and e.errno in (errno.ENOENT, errno.EISDIR, errno.ENOTDIR):
+                exec(compile(config_file.read(), filename, "exec"), data.__dict__)
+        except IOError as error:
+            if silent and error.errno in (errno.ENOENT, errno.EISDIR, errno.ENOTDIR):
                 return False
-            e.strerror = "Unable to load configuration file (%s)" % e.strerror
+            error.strerror = "Unable to load configuration file (%s)" % error.strerror
             raise
-        self.from_object(d)
+        self.from_object(data)
         return True
 
     def from_object(self, obj):
@@ -194,10 +186,10 @@ class Config(dict):
         try:
             with open(filename) as json_file:
                 obj = json.loads(json_file.read())
-        except IOError as e:
-            if silent and e.errno in (errno.ENOENT, errno.EISDIR):
+        except IOError as error:
+            if silent and error.errno in (errno.ENOENT, errno.EISDIR):
                 return False
-            e.strerror = "Unable to load configuration file (%s)" % e.strerror
+            error.strerror = "Unable to load configuration file (%s)" % error.strerror
             raise
         return self.from_mapping(obj)
 
@@ -252,18 +244,18 @@ class Config(dict):
 
         .. versionadded:: 0.11
         """
-        rv = {}
-        for k, v in iteritems(self):
-            if not k.startswith(namespace):
+        root_variable = {}
+        for master_key, value in iteritems(self):
+            if not master_key.startswith(namespace):
                 continue
             if trim_namespace:
-                key = k[len(namespace) :]
+                key = master_key[len(namespace) :]
             else:
-                key = k
+                key = master_key
             if lowercase:
                 key = key.lower()
-            rv[key] = v
-        return rv
+            root_variable[key] = value
+        return root_variable
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, dict.__repr__(self))
